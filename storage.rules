@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isAuthenticated() && request.auth.token.role == 'OWNER';
+    }
+
+    // Payment Screenshots uploaded by students during access request
+    match /payment_proofs/{userId}/{fileName} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isOwner());
+      allow write: if isAuthenticated() && request.auth.uid == userId && request.resource.size < 10 * 1024 * 1024; // < 10MB
+    }
+
+    // Protected PDF Notes and Question Bank files (Accessible only by Owner in direct storage;
+    // students stream encrypted buffers verified through server/app)
+    match /protected_materials/{allPaths=**} {
+      allow read, write: if isOwner();
+    }
+  }
+}
